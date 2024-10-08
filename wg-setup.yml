@@ -1,0 +1,136 @@
+---
+- name: Set up WireGuard VPN
+  hosts: vps
+  become: yes
+  vars:
+    wireguard_port: 51820
+    wireguard_address: "10.0.0.1/24"
+    client_count: 5
+
+  tasks:
+    - name: Install WireGuard
+      apt:
+        name: wireguard
+        state: present
+        update_cache: yes
+
+    - name: Check if WireGuard server private key exists
+      stat:
+        path: /etc/wireguard/private.key
+      register: private_key_file
+    
+    - name: Generate WireGuard server private key if not exists
+      command: wg genkey
+      register: server_private_key_gen
+      when: not private_key_file.stat.exists
+
+    - name: Save WireGuard server private key
+      copy:
+        content: "{{ server_private_key_gen.stdout }}"
+        dest: /etc/wireguard/private.key
+        mode: '0600'
+      when: not private_key_file.stat.exists
+
+    - name: Read existing WireGuard server private keysudo iptables -nvL -t nat
+      slurp:
+        src: /etc/wireguard/private.key
+      register: server_private_key_read
+      when: private_key_file.stat.exists
+
+    - name: Set server private key fact
+      set_fact:
+        server_private_key: "{{ server_private_key_gen.stdout if server_private_key_gen.stdout is defined else (server_private_key_read.content | b64decode | trim) }}"
+
+    - name: Generate WireGuard server public key
+      shell: echo "{{ server_private_key }}" | wg pubkey
+      register: server_public_key
+
+    - name: Generate client configurations
+      include_tasks: generate_client.yml
+      loop: "{{ range(1, client_count + 1)|list }}"
+      loop_control:
+        loop_var: client_number
+    
+    - name: Ensure WireGuard interface is down
+      command: wg-quick down wg0
+      ignore_errors: true
+
+    - name: Remove old WireGuard interface
+      command: ip link delete wg0
+      ignore_errors: true
+
+    - name: Create WireGuard server configuration
+      template:
+        src: wg0.conf.j2
+        dest: /etc/wireguard/wg0.conf
+        mode: '0600'
+
+    - name: Start and enable WireGuard service
+      systemd:
+        name: wg-quick@wg0
+        state: started
+        enabled: yes
+    
+    - name: Set UFW default forward policy to allow
+      command: ufw default allow FORWARD
+      changed_when: false
+
+    - name: Allow routing on WireGuard interface
+      command: ufw route allow in on wg0
+      changed_when: false
+    
+    - name: Ensure UFW allows SSH
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+
+    - name: Configure UFW to allow WireGuard traffic
+      ufw:
+        rule: allow
+        port: "{{ wireguard_port }}"
+        proto: udp
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes
+
+    - name: Check if NAT rules are already present
+      command: grep -q "ANSIBLE MANAGED BLOCK FOR WIREGUARD NAT" /etc/ufw/before.rules
+      register: nat_rules_check
+      failed_when: false
+      changed_when: false
+
+    - name: Configure NAT in UFW
+      blockinfile:
+        path: /etc/ufw/before.rules
+        block: |
+          *nat
+          :POSTROUTING ACCEPT [0:0]
+          -F POSTROUTING
+          -A POSTROUTING -s 10.0.0.0/24 -o enp1s0 -j MASQUERADE
+          COMMIT
+        insertbefore: BOF
+        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR WIREGUARD NAT"
+      when: nat_rules_check.rc != 0
+    
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+        state: reloaded
+    
+    - name: Restart WireGuard service
+      systemd:
+        name: wg-quick@wg0
+        state: restarted
+
+    - name: Fetch client configuration files
+      fetch:
+        src: "/etc/wireguard/client{{ item }}.conf"
+        dest: "./wireguard_clients/client{{ item }}.conf"
+        flat: yes
+      loop: "{{ range(1, client_count + 1)|list }}"

@@ -1,0 +1,10 @@
+[Interface]
+Address = {{ wireguard_address }}
+PrivateKey = {{ server_private_key }}
+ListenPort = {{ wireguard_port }}
+
+{% for n in range(1, client_count + 1) %}
+[Peer]
+PublicKey = {{ hostvars[inventory_hostname]['client' ~ n ~ '_public_key'] }}
+AllowedIPs = 10.0.0.{{ n + 1 }}/32
+{% endfor %}
