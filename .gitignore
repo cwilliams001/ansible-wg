@@ -1,0 +1,25 @@
+# Ansible
+*.retry
+/tmp/ansible_facts_cache/
+
+# WireGuard client configurations (contain private keys)
+wireguard_clients/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
