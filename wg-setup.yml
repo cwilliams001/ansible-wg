@@ -58,6 +58,7 @@
           - python3-pip
           - python3-netaddr
           - net-tools
+          - curl
         state: present
       tags: ['packages']
 
@@ -73,9 +74,16 @@
       when: default_interface is not defined
       tags: ['networking']
 
-    - name: Get server public IP address
+    - name: Get server public IP address from external service
+      ansible.builtin.shell: |
+        curl -s -4 ifconfig.me || curl -s -4 icanhazip.com || curl -s -4 api.ipify.org || echo "{{ ansible_default_ipv4.address }}"
+      register: public_ip_result
+      changed_when: false
+      tags: ['networking']
+
+    - name: Set server public IP address
       ansible.builtin.set_fact:
-        server_public_ip: "{{ wireguard_server_public_ip | default(ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
+        server_public_ip: "{{ wireguard_server_public_ip | default(public_ip_result.stdout | trim) }}"
       tags: ['networking']
 
     - name: Display detected network configuration

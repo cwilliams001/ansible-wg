@@ -9,7 +9,7 @@ wireguard_dns: "1.1.1.1, 1.0.0.1"
 
 # Server Configuration
 # Uncomment and set this to override auto-detected public IP
-# wireguard_server_public_ip: "YOUR.PUBLIC.IP.HERE"
+# wireguard_server_public_ip: "155.138.205.197"
 
 # Client Configuration
 wireguard_client_count: 5
