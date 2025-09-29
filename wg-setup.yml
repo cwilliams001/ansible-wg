@@ -18,6 +18,17 @@
       listen: "reload firewall"
 
   pre_tasks:
+    - name: Ensure Python is installed
+      ansible.builtin.raw: |
+        if ! command -v python3 > /dev/null 2>&1; then
+          apt-get update
+          apt-get install -y python3 python3-pip
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
+      tags: ['always']
+
     - name: Validate variables
       ansible.builtin.assert:
         that:
@@ -45,13 +56,8 @@
           - wireguard-tools
           - ufw
           - python3-pip
+          - python3-netaddr
           - net-tools
-        state: present
-      tags: ['packages']
-
-    - name: Install Python netaddr for ansible
-      ansible.builtin.pip:
-        name: netaddr
         state: present
       tags: ['packages']
 

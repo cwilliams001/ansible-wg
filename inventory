@@ -1,2 +1,2 @@
 [vps]
-test-vps
+test-vps ansible_python_interpreter=/usr/bin/python3
