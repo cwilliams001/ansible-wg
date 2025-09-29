@@ -1,10 +1,11 @@
 [Interface]
 PrivateKey = {{ client_private_key_actual }}
-Address = 10.0.0.{{ client_number + 1 }}/32
-DNS = 8.8.8.8
+Address = {{ client_address }}
+DNS = {{ wireguard_dns }}
 
 [Peer]
 PublicKey = {{ server_public_key.stdout }}
+PresharedKey = {{ client_preshared_key }}
 Endpoint = {{ ansible_host }}:{{ wireguard_port }}
-AllowedIPs = 0.0.0.0/0
-PersistentKeepalive = 25
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = {{ wireguard_persistent_keepalive }}

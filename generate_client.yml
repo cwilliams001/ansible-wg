@@ -1,20 +1,78 @@
-- name: Generate client private key
-  command: wg genkey
-  register: client_private_key
+---
+- name: Check if client {{ client_number }} private key exists
+  ansible.builtin.stat:
+    path: "{{ wireguard_config_dir }}/clients/client{{ client_number }}_private.key"
+  register: client_key_file
 
-- name: Generate client public key
-  shell: echo "{{ client_private_key.stdout }}" | wg pubkey
+- name: Generate client {{ client_number }} private key if not exists
+  block:
+    - name: Create client {{ client_number }} private key
+      ansible.builtin.shell: |
+        set -e
+        umask {{ wireguard_umask }}
+        wg genkey > {{ wireguard_config_dir }}/clients/client{{ client_number }}_private.key
+
+    - name: Set permissions on newly created client {{ client_number }} private key
+      ansible.builtin.file:
+        path: "{{ wireguard_config_dir }}/clients/client{{ client_number }}_private.key"
+        owner: root
+        group: root
+        mode: '0600'
+  when: not client_key_file.stat.exists
+
+- name: Ensure client {{ client_number }} private key has correct permissions
+  ansible.builtin.file:
+    path: "{{ wireguard_config_dir }}/clients/client{{ client_number }}_private.key"
+    owner: root
+    group: root
+    mode: '0600'
+  when: client_key_file.stat.exists
+
+- name: Read client {{ client_number }} private key
+  ansible.builtin.slurp:
+    src: "{{ wireguard_config_dir }}/clients/client{{ client_number }}_private.key"
+  register: client_private_key_content
+
+- name: Generate client {{ client_number }} public key
+  ansible.builtin.shell: |
+    echo "{{ client_private_key_content.content | b64decode | trim }}" | wg pubkey
   register: client_public_key
+  changed_when: false
 
-- name: Set client public key fact
-  set_fact:
+- name: Store client {{ client_number }} public key as fact
+  ansible.builtin.set_fact:
     "client{{ client_number }}_public_key": "{{ client_public_key.stdout }}"
-    "client{{ client_number }}_private_key": "{{ client_private_key.stdout }}"
+    "client{{ client_number }}_private_key": "{{ client_private_key_content.content | b64decode | trim }}"
 
-- name: Create client configuration
-  template:
+- name: Check if client {{ client_number }} preshared key exists
+  ansible.builtin.stat:
+    path: "{{ wireguard_config_dir }}/clients/client{{ client_number }}_psk.key"
+  register: client_psk_file
+
+- name: Generate preshared key for client {{ client_number }} if not exists
+  ansible.builtin.shell: |
+    set -e
+    umask {{ wireguard_umask }}
+    wg genpsk > {{ wireguard_config_dir }}/clients/client{{ client_number }}_psk.key
+  when: not client_psk_file.stat.exists
+
+- name: Read preshared key for client {{ client_number }}
+  ansible.builtin.slurp:
+    src: "{{ wireguard_config_dir }}/clients/client{{ client_number }}_psk.key"
+  register: client_psk_content
+
+- name: Set preshared key fact for client {{ client_number }}
+  ansible.builtin.set_fact:
+    "client{{ client_number }}_psk": "{{ client_psk_content.content | b64decode | trim }}"
+
+- name: Create client {{ client_number }} configuration
+  ansible.builtin.template:
     src: client.conf.j2
-    dest: "/etc/wireguard/client{{ client_number }}.conf"
+    dest: "{{ wireguard_config_dir }}/clients/client{{ client_number }}.conf"
+    owner: root
+    group: root
     mode: '0600'
   vars:
-    client_private_key_actual: "{{ client_private_key.stdout }}"
+    client_private_key_actual: "{{ hostvars[inventory_hostname]['client' + (client_number|string) + '_private_key'] }}"
+    client_preshared_key: "{{ hostvars[inventory_hostname]['client' + (client_number|string) + '_psk'] }}"
+    client_address: "10.0.0.{{ client_number + 1 }}/32"
