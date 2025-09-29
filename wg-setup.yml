@@ -73,9 +73,16 @@
       when: default_interface is not defined
       tags: ['networking']
 
-    - name: Display detected network interface
+    - name: Get server public IP address
+      ansible.builtin.set_fact:
+        server_public_ip: "{{ wireguard_server_public_ip | default(ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
+      tags: ['networking']
+
+    - name: Display detected network configuration
       ansible.builtin.debug:
-        msg: "Using network interface: {{ default_interface }}"
+        msg:
+          - "Using network interface: {{ default_interface }}"
+          - "Server public IP: {{ server_public_ip }}"
       tags: ['networking']
 
     - name: Enable IP forwarding
@@ -182,7 +189,7 @@
       loop:
         - { direction: 'incoming', policy: 'deny' }
         - { direction: 'outgoing', policy: 'allow' }
-        - { direction: 'forward', policy: 'allow' }
+        - { direction: 'routed', policy: 'allow' }
       tags: ['firewall']
 
     - name: Allow SSH through UFW

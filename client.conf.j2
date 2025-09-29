@@ -6,6 +6,6 @@ DNS = {{ wireguard_dns }}
 [Peer]
 PublicKey = {{ server_public_key.stdout }}
 PresharedKey = {{ client_preshared_key }}
-Endpoint = {{ ansible_host }}:{{ wireguard_port }}
+Endpoint = {{ server_public_ip }}:{{ wireguard_port }}
 AllowedIPs = 0.0.0.0/0, ::/0
 PersistentKeepalive = {{ wireguard_persistent_keepalive }}
