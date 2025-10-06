@@ -3,6 +3,8 @@ Address = {{ wireguard_address }}
 PrivateKey = {{ server_private_key }}
 ListenPort = {{ wireguard_port }}
 SaveConfig = false
+PostUp = iptables -A FORWARD -i {{ wireguard_interface_name }} -o {{ wireguard_interface_name }} -j ACCEPT
+PostDown = iptables -D FORWARD -i {{ wireguard_interface_name }} -o {{ wireguard_interface_name }} -j ACCEPT
 
 {% for n in range(1, wireguard_client_count + 1) %}
 [Peer]

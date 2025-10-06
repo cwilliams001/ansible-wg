@@ -216,6 +216,16 @@
         comment: 'Allow WireGuard'
       tags: ['firewall']
 
+    - name: Allow SSH within WireGuard subnet
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ wireguard_network }}"
+        to_ip: "{{ wireguard_network }}"
+        port: '22'
+        proto: tcp
+        comment: 'Allow SSH between WireGuard clients'
+      tags: ['firewall']
+
     - name: Check if NAT rules exist in UFW
       ansible.builtin.lineinfile:
         path: /etc/ufw/before.rules
