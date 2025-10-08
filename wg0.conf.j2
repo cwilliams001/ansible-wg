@@ -2,9 +2,10 @@
 Address = {{ wireguard_address }}
 PrivateKey = {{ server_private_key }}
 ListenPort = {{ wireguard_port }}
+MTU = 1375
 SaveConfig = false
-PostUp = iptables -A FORWARD -i {{ wireguard_interface_name }} -o {{ wireguard_interface_name }} -j ACCEPT
-PostDown = iptables -D FORWARD -i {{ wireguard_interface_name }} -o {{ wireguard_interface_name }} -j ACCEPT
+PostUp = iptables -A FORWARD -i {{ wireguard_interface_name }} -j ACCEPT; iptables -A FORWARD -o {{ wireguard_interface_name }} -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ default_interface }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i {{ wireguard_interface_name }} -j ACCEPT; iptables -D FORWARD -o {{ wireguard_interface_name }} -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ default_interface }} -j MASQUERADE
 
 {% for n in range(1, wireguard_client_count + 1) %}
 [Peer]

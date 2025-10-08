@@ -2,6 +2,7 @@
 PrivateKey = {{ client_private_key_actual }}
 Address = {{ client_address }}
 DNS = {{ wireguard_dns }}
+MTU = 1375
 
 [Peer]
 PublicKey = {{ server_public_key.stdout }}
