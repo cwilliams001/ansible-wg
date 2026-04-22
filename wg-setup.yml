@@ -42,10 +42,19 @@
         fail_msg: "Required WireGuard variables are not properly defined"
       tags: ['always']
 
+    - name: Wait for automatic package updates to finish
+      ansible.builtin.shell: |
+        while fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1; do
+          sleep 5
+        done
+      changed_when: false
+      tags: ['packages']
+
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
+        lock_timeout: 600
       tags: ['packages']
 
   tasks:
@@ -60,6 +69,7 @@
           - net-tools
           - curl
         state: present
+        lock_timeout: 600
       tags: ['packages']
 
     - name: Get default network interface

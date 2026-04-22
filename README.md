@@ -85,6 +85,14 @@ Run the validation script to check your setup:
 ansible-playbook -i inventory wg-setup.yml
 ```
 
+If the target server only has password auth (no SSH key installed yet), prompt for the SSH and sudo passwords instead. This requires `sshpass` to be installed on the control machine (`sudo pacman -S sshpass` on Arch, `sudo apt install sshpass` on Debian/Ubuntu):
+
+```bash
+ansible-playbook -i inventory wg-setup.yml --ask-pass --ask-become-pass
+```
+
+`--ask-become-pass` can be omitted when logging in directly as `root`.
+
 For a dry run (check mode):
 
 ```bash
